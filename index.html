@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAT Prep Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0d0d0f;
+  --surface: #141418;
+  --surface2: #1c1c22;
+  --border: #2a2a35;
+  --accent: #e8c547;
+  --accent2: #ff6b4a;
+  --accent3: #5ec4ff;
+  --text: #f0ede6;
+  --muted: #6b6b7a;
+  --success: #4ade80;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'DM Mono',monospace; min-height:100vh; overflow-x:hidden; }
+body::before { content:''; position:fixed; top:-30%; right:-20%; width:700px; height:700px; background:radial-gradient(circle,rgba(232,197,71,0.05) 0%,transparent 65%); pointer-events:none; z-index:0; }
+body::after { content:''; position:fixed; bottom:-20%; left:-10%; width:500px; height:500px; background:radial-gradient(circle,rgba(94,196,255,0.04) 0%,transparent 65%); pointer-events:none; z-index:0; }
+
+/* NAV TABS */
+.nav { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:40px; position:sticky; top:0; background:rgba(13,13,15,0.95); backdrop-filter:blur(12px); z-index:50; padding:0 0; }
+.nav-tab { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase; padding:16px 24px; border:none; background:none; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
+.nav-tab:hover { color:var(--text); }
+.nav-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+.container { max-width:1100px; margin:0 auto; padding:0 24px 60px; position:relative; z-index:1; }
+
+/* HEADER */
+.page-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:40px; border-bottom:1px solid var(--border); padding:32px 0 28px; }
+.logo { font-family:'Playfair Display',serif; font-size:40px; font-weight:900; letter-spacing:-2px; line-height:1; }
+.logo span { color:var(--accent); }
+.exam-date-block { text-align:right; }
+.exam-date-block label { display:block; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:2px; margin-bottom:6px; }
+.exam-date-block input[type="date"] { background:var(--surface2); border:1px solid var(--border); color:var(--text); font-family:'DM Mono',monospace; font-size:14px; padding:8px 12px; border-radius:6px; outline:none; }
+.exam-date-block input:focus { border-color:var(--accent); }
+#countdown { margin-top:6px; font-size:12px; color:var(--accent); font-weight:500; }
+
+/* PAGES */
+.page { display:none; }
+.page.active { display:block; animation:fadeIn 0.3s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+
+/* STATS BANNER */
+.score-banner { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:40px; }
+.score-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; position:relative; overflow:hidden; transition:border-color 0.2s; }
+.score-card:hover { border-color:var(--accent); }
+.score-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:3px; background:var(--accent); transform:scaleX(0); transform-origin:left; transition:transform 0.5s ease; }
+.score-card.filled::after { transform:scaleX(1); }
+.score-card .label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:2px; margin-bottom:8px; }
+.score-card .value { font-family:'Playfair Display',serif; font-size:34px; font-weight:700; color:var(--accent); line-height:1; }
+.score-card .sub { font-size:11px; color:var(--muted); margin-top:4px; }
+
+/* STREAK DISPLAY */
+.streak-banner { display:flex; gap:16px; margin-bottom:32px; }
+.streak-card { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 20px; display:flex; align-items:center; gap:14px; }
+.streak-icon { font-size:28px; line-height:1; }
+.streak-info .s-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:2px; }
+.streak-info .s-val { font-family:'Playfair Display',serif; font-size:26px; font-weight:700; color:var(--accent); line-height:1.1; }
+
+/* STUDY LOG */
+.study-log-form { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:24px; display:grid; grid-template-columns:repeat(4,1fr) auto; gap:14px; align-items:end; margin-bottom:24px; }
+.form-group label { display:block; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:2px; margin-bottom:6px; }
+.form-group input, .form-group select, .form-group textarea { width:100%; background:var(--surface2); border:1px solid var(--border); color:var(--text); font-family:'DM Mono',monospace; font-size:12px; padding:8px 12px; border-radius:6px; outline:none; transition:border-color 0.2s; -webkit-appearance:none; resize:none; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color:var(--accent); }
+.form-group input::placeholder, .form-group textarea::placeholder { color:var(--muted); }
+.form-group select option { background:var(--surface2); }
+
+.log-btn { background:var(--accent); border:none; color:var(--bg); font-family:'DM Mono',monospace; font-size:12px; font-weight:500; padding:9px 18px; border-radius:6px; cursor:pointer; white-space:nowrap; letter-spacing:1px; transition:opacity 0.2s; height:36px; }
+.log-btn:hover { opacity:0.85; }
+
+/* HEATMAP */
+.heatmap-wrap { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:32px; }
+.heatmap-wrap h3 { font-family:'Playfair Display',serif; font-size:16px; font-weight:700; margin-bottom:16px; }
+.heatmap-grid { display:flex; gap:3px; flex-wrap:wrap; }
+.heatmap-cell { width:14px; height:14px; border-radius:3px; background:var(--surface2); transition:transform 0.15s; cursor:default; position:relative; }
+.heatmap-cell:hover { transform:scale(1.3); z-index:2; }
+.heatmap-cell[data-level="1"] { background:rgba(232,197,71,0.25); }
+.heatmap-cell[data-level="2"] { background:rgba(232,197,71,0.5); }
+.heatmap-cell[data-level="3"] { background:rgba(232,197,71,0.75); }
+.heatmap-cell[data-level="4"] { background:var(--accent); }
+.heatmap-legend { display:flex; align-items:center; gap:6px; margin-top:12px; font-size:10px; color:var(--muted); }
+.heatmap-legend div { width:12px; height:12px; border-radius:2px; }
+
+/* STUDY LOG TABLE */
+.log-table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:32px; }
+.log-table { width:100%; border-collapse:collapse; font-size:12px; }
+.log-table th { text-align:left; padding:10px 16px; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:2px; border-bottom:1px solid var(--border); background:var(--surface); }
+.log-table td { padding:11px 16px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
+.log-table tr:last-child td { border-bottom:none; }
+.log-table tr:hover td { background:var(--surface2); }
+.tag-pill { display:inline-block; padding:2px 8px; border-radius:99px; font-size:10px; background:rgba(232,197,71,0.1); color:var(--accent); border:1px solid rgba(232,197,71,0.2); }
+.del-row { background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; }
+.del-row:hover { color:var(--accent2); }
+.empty-state { text-align:center; padding:28px; color:var(--muted); font-size:12px; }
+
+/* SECTIONS */
+.sections-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+.sections-header h2 { font-family:'Playfair Display',serif; font-size:22px; font-weight:700; }
+.add-btn { background:transparent; border:1px solid var(--accent); color:var(--accent); font-family:'DM Mono',monospace; font-size:11px; padding:7px 14px; border-radius:6px; cursor:pointer; letter-spacing:1px; transition:all 0.2s; }
+.add-btn:hover { background:var(--accent); color:var(--bg); }
+.sections-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-bottom:40px; }
+.section-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px; transition:transform 0.2s, border-color 0.2s; animation:fadeUp 0.4s ease both; }
+.section-card:hover { transform:translateY(-2px); }
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px);} to{opacity:1;transform:translateY(0);} }
+.section-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; }
+.section-name { font-family:'Playfair Display',serif; font-size:16px; font-weight:700; line-height:1.2; }
+.delete-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px; transition:color 0.2s; }
+.delete-btn:hover { color:var(--accent2); }
+.progress-bar { background:var(--surface2); height:6px; border-radius:99px; overflow:hidden; margin-bottom:10px; }
+.progress-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width 0.5s ease; }
+.section-meta { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:12px; }
+.section-percent { font-family:'Playfair Display',serif; font-size:18px; font-weight:700; color:var(--text); }
+.topics-list { display:flex; flex-direction:column; gap:5px; margin-bottom:12px; max-height:180px; overflow-y:auto; }
+.topics-list::-webkit-scrollbar { width:3px; }
+.topics-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.topic-item { display:flex; align-items:center; gap:8px; font-size:11px; padding:4px 6px; border-radius:5px; cursor:pointer; transition:background 0.15s; }
+.topic-item:hover { background:var(--surface2); }
+.topic-item input[type="checkbox"] { accent-color:var(--accent); width:13px; height:13px; cursor:pointer; }
+.topic-label { flex:1; }
+.topic-label.done { color:var(--muted); text-decoration:line-through; }
+.topic-note-btn { font-size:11px; background:none; border:none; color:var(--muted); cursor:pointer; padding:0 2px; transition:color 0.15s; }
+.topic-note-btn:hover { color:var(--accent3); }
+.topic-note-btn.has-note { color:var(--accent3); }
+.remove-topic { background:none; border:none; color:var(--muted); font-size:11px; cursor:pointer; opacity:0; transition:opacity 0.15s; }
+.topic-item:hover .remove-topic { opacity:1; }
+.add-topic-row { display:flex; gap:6px; }
+.add-topic-row input[type="text"] { flex:1; background:var(--surface2); border:1px solid var(--border); color:var(--text); font-family:'DM Mono',monospace; font-size:11px; padding:6px 10px; border-radius:6px; outline:none; transition:border-color 0.2s; }
+.add-topic-row input:focus { border-color:var(--accent); }
+.add-topic-row input::placeholder { color:var(--muted); }
+.add-topic-btn { background:var(--surface2); border:1px solid var(--border); color:var(--accent); width:28px; height:28px; border-radius:6px; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; transition:background 0.2s; }
+.add-topic-btn:hover { background:var(--border); }
+
+/* MOCK TESTS */
+.mock-form { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:24px; display:grid; grid-template-columns:repeat(4,1fr) auto; gap:14px; align-items:end; margin-bottom:20px; }
+.mock-table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+.mock-table { width:100%; border-collapse:collapse; font-size:12px; }
+.mock-table th { text-align:left; padding:10px 16px; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:2px; border-bottom:1px solid var(--border); }
+.mock-table td { padding:11px 16px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
+.mock-table tr:last-child td { border-bottom:none; }
+.mock-table tr:hover td { background:var(--surface2); }
+.score-pill { display:inline-block; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:500; }
+.score-pill.high { background:rgba(74,222,128,0.12); color:var(--success); }
+.score-pill.mid { background:rgba(232,197,71,0.12); color:var(--accent); }
+.score-pill.low { background:rgba(255,107,74,0.12); color:var(--accent2); }
+
+/* CHARTS PAGE */
+.charts-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:24px; }
+.chart-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:24px; }
+.chart-card.wide { grid-column:span 2; }
+.chart-card h3 { font-family:'Playfair Display',serif; font-size:16px; font-weight:700; margin-bottom:20px; }
+.chart-card canvas { max-height:260px; }
+
+/* SECTION DIVIDER */
+hr.divider { border:none; border-top:1px solid var(--border); margin:36px 0; }
+
+/* MODALS */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(6px); z-index:200; align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:32px; width:440px; animation:modalIn 0.2s ease; }
+@keyframes modalIn { from{opacity:0;transform:scale(0.95);} to{opacity:1;transform:scale(1);} }
+.modal h3 { font-family:'Playfair Display',serif; font-size:22px; margin-bottom:20px; }
+.modal input, .modal textarea { width:100%; background:var(--surface2); border:1px solid var(--border); color:var(--text); font-family:'DM Mono',monospace; font-size:13px; padding:10px 14px; border-radius:8px; outline:none; margin-bottom:14px; resize:vertical; }
+.modal input:focus, .modal textarea:focus { border-color:var(--accent); }
+.modal-btns { display:flex; gap:10px; justify-content:flex-end; }
+.modal-cancel { background:none; border:1px solid var(--border); color:var(--muted); font-family:'DM Mono',monospace; font-size:12px; padding:8px 16px; border-radius:6px; cursor:pointer; }
+.modal-confirm { background:var(--accent); border:none; color:var(--bg); font-family:'DM Mono',monospace; font-size:12px; font-weight:500; padding:8px 16px; border-radius:6px; cursor:pointer; }
+
+@media(max-width:768px) {
+  .sections-grid,.charts-grid{grid-template-columns:1fr;}
+  .chart-card.wide{grid-column:span 1;}
+  .score-banner{grid-template-columns:repeat(2,1fr);}
+  .study-log-form,.mock-form{grid-template-columns:1fr 1fr;}
+  .page-header{flex-direction:column;align-items:flex-start;gap:16px;}
+  .streak-banner{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="page-header">
+    <div>
+      <div class="logo">CAT<span>.</span>prep</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;letter-spacing:1px;">Common Admission Test — Progress Tracker</div>
+    </div>
+    <div class="exam-date-block">
+      <label>Exam Date</label>
+      <input type="date" id="examDate">
+      <div id="countdown">— days remaining</div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-tab active" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="nav-tab" onclick="showPage('study')">Study Log</button>
+    <button class="nav-tab" onclick="showPage('sections')">Sections</button>
+    <button class="nav-tab" onclick="showPage('mocks')">Mock Tests</button>
+    <button class="nav-tab" onclick="showPage('charts')">Charts</button>
+  </nav>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="score-banner">
+      <div class="score-card" id="card-overall">
+        <div class="label">Overall Progress</div>
+        <div class="value" id="stat-overall">0%</div>
+        <div class="sub" id="stat-topics">0 / 0 topics</div>
+      </div>
+      <div class="score-card" id="card-hours">
+        <div class="label">Total Study Hours</div>
+        <div class="value" id="stat-hours">0</div>
+        <div class="sub" id="stat-hours-week">this week: 0h</div>
+      </div>
+      <div class="score-card" id="card-mocks">
+        <div class="label">Mock Tests Taken</div>
+        <div class="value" id="stat-mocks">0</div>
+        <div class="sub" id="stat-avg-score">avg: —</div>
+      </div>
+      <div class="score-card" id="card-best">
+        <div class="label">Best Mock Score</div>
+        <div class="value" id="stat-best">—</div>
+        <div class="sub">personal best</div>
+      </div>
+    </div>
+
+    <div class="streak-banner">
+      <div class="streak-card">
+        <div class="streak-icon">🔥</div>
+        <div class="streak-info">
+          <div class="s-label">Current Streak</div>
+          <div class="s-val" id="streak-current">0 days</div>
+        </div>
+      </div>
+      <div class="streak-card">
+        <div class="streak-icon">🏆</div>
+        <div class="streak-info">
+          <div class="s-label">Longest Streak</div>
+          <div class="s-val" id="streak-longest">0 days</div>
+        </div>
+      </div>
+      <div class="streak-card">
+        <div class="streak-icon">📅</div>
+        <div class="streak-info">
+          <div class="s-label">Days Studied</div>
+          <div class="s-val" id="streak-total">0 days</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="heatmap-wrap">
+      <h3>Study Activity — Last 90 Days</h3>
+      <div class="heatmap-grid" id="heatmapGrid"></div>
+      <div class="heatmap-legend">
+        <span>Less</span>
+        <div style="background:var(--surface2);"></div>
+        <div data-level="1"></div>
+        <div data-level="2"></div>
+        <div data-level="3"></div>
+        <div data-level="4"></div>
+        <span>More</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STUDY LOG PAGE -->
+  <div class="page" id="page-study">
+    <div class="study-log-form">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="logDate">
+      </div>
+      <div class="form-group">
+        <label>Section</label>
+        <select id="logSection">
+          <option value="QA">Quantitative Aptitude</option>
+          <option value="DILR">DI & LR</option>
+          <option value="VARC">Verbal & RC</option>
+          <option value="General">General</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Hours Studied</label>
+        <input type="number" id="logHours" min="0.5" max="16" step="0.5" placeholder="2.0">
+      </div>
+      <div class="form-group">
+        <label>Topics / Notes</label>
+        <input type="text" id="logNotes" placeholder="e.g. Permutations, RC passages...">
+      </div>
+      <button class="log-btn" onclick="logStudy()">Log</button>
+    </div>
+
+    <div class="log-table-wrap">
+      <table class="log-table">
+        <thead><tr><th>Date</th><th>Section</th><th>Hours</th><th>Notes</th><th></th></tr></thead>
+        <tbody id="studyLogBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECTIONS PAGE -->
+  <div class="page" id="page-sections">
+    <div class="sections-header">
+      <h2>Study Sections</h2>
+      <button class="add-btn" onclick="openModal('section')">+ Add Section</button>
+    </div>
+    <div class="sections-grid" id="sectionsGrid"></div>
+  </div>
+
+  <!-- MOCK TESTS PAGE -->
+  <div class="page" id="page-mocks">
+    <div class="mock-form">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="mockDate">
+      </div>
+      <div class="form-group">
+        <label>Test Name</label>
+        <input type="text" id="mockName" placeholder="e.g. IMS Mock 3">
+      </div>
+      <div class="form-group">
+        <label>Score (out of 100)</label>
+        <input type="number" id="mockScore" min="0" max="100" placeholder="72">
+      </div>
+      <div class="form-group">
+        <label>Percentile</label>
+        <input type="number" id="mockPercentile" min="0" max="100" step="0.01" placeholder="89.5">
+      </div>
+      <button class="log-btn" onclick="logMock()">Log</button>
+    </div>
+    <div class="mock-table-wrap">
+      <table class="mock-table">
+        <thead><tr><th>Date</th><th>Test Name</th><th>Score</th><th>Percentile</th><th></th></tr></thead>
+        <tbody id="mockBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CHARTS PAGE -->
+  <div class="page" id="page-charts">
+    <div class="charts-grid">
+      <div class="chart-card wide">
+        <h3>Mock Score Trend</h3>
+        <canvas id="chartMockTrend"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Section Progress</h3>
+        <canvas id="chartSectionProgress"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Study Hours by Section</h3>
+        <canvas id="chartHoursBySection"></canvas>
+      </div>
+      <div class="chart-card wide">
+        <h3>Daily Study Hours — Last 30 Days</h3>
+        <canvas id="chartDailyHours"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-section">
+  <div class="modal">
+    <h3>New Section</h3>
+    <input type="text" id="sectionInput" placeholder="e.g. Quantitative Aptitude" maxlength="50">
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal('section')">Cancel</button>
+      <button class="modal-confirm" onclick="addSection()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-note">
+  <div class="modal">
+    <h3 id="noteModalTitle">Topic Note</h3>
+    <textarea id="noteInput" rows="5" placeholder="Add your notes, formulas, reminders..."></textarea>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal('note')">Cancel</button>
+      <button class="modal-confirm" onclick="saveNote()">Save Note</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const KEY = 'cat_prep_v4';
+let noteTarget = null;
+let charts = {};
+
+let state = JSON.parse(localStorage.getItem(KEY)) || {
+  examDate: '',
+  sections: [
+    { id:'s1', name:'Quantitative Aptitude', topics:[
+      {id:'t1',name:'Number Systems',done:false,note:''},
+      {id:'t2',name:'Arithmetic',done:false,note:''},
+      {id:'t3',name:'Algebra',done:false,note:''},
+      {id:'t4',name:'Geometry',done:false,note:''},
+      {id:'t5',name:'Modern Math',done:false,note:''},
+    ]},
+    { id:'s2', name:'Verbal Ability & RC', topics:[
+      {id:'t6',name:'Reading Comprehension',done:false,note:''},
+      {id:'t7',name:'Para Jumbles',done:false,note:''},
+      {id:'t8',name:'Sentence Correction',done:false,note:''},
+    ]},
+    { id:'s3', name:'Data Interpretation & LR', topics:[
+      {id:'t9',name:'Bar & Line Charts',done:false,note:''},
+      {id:'t10',name:'Tables',done:false,note:''},
+      {id:'t11',name:'Logical Reasoning',done:false,note:''},
+    ]},
+  ],
+  mocks: [],
+  studyLog: []
+};
+
+function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+
+// Exam date
+const examDateInput = document.getElementById('examDate');
+if (state.examDate) examDateInput.value = state.examDate;
+examDateInput.addEventListener('change', () => { state.examDate = examDateInput.value; save(); updateCountdown(); });
+function updateCountdown() {
+  const el = document.getElementById('countdown');
+  if (!state.examDate) { el.textContent = '— days remaining'; return; }
+  const diff = Math.ceil((new Date(state.examDate) - new Date()) / 86400000);
+  el.textContent = diff < 0 ? 'Exam passed' : diff === 0 ? 'Exam is TODAY! 🎯' : diff + ' days remaining';
+}
+updateCountdown();
+
+// Default today for log date
+document.getElementById('logDate').value = new Date().toISOString().split('T')[0];
+document.getElementById('mockDate').value = new Date().toISOString().split('T')[0];
+
+// NAV
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.target.classList.add('active');
+  if (id === 'charts') { setTimeout(renderCharts, 50); }
+}
+
+// RENDER ALL
+function render() {
+  renderDashboard();
+  renderSections();
+  renderMocks();
+  renderStudyLog();
+  renderHeatmap();
+}
+
+// DASHBOARD
+function renderDashboard() {
+  let totalT = 0, doneT = 0;
+  state.sections.forEach(s => { totalT += s.topics.length; doneT += s.topics.filter(t=>t.done).length; });
+  const pct = totalT ? Math.round(doneT/totalT*100) : 0;
+  document.getElementById('stat-overall').textContent = pct + '%';
+  document.getElementById('stat-topics').textContent = doneT + ' / ' + totalT + ' topics';
+  document.getElementById('card-overall').classList.toggle('filled', pct > 0);
+
+  const totalH = state.studyLog.reduce((a,l)=>a+parseFloat(l.hours||0),0);
+  const weekStart = new Date(); weekStart.setDate(weekStart.getDate()-7);
+  const weekH = state.studyLog.filter(l=>new Date(l.date)>=weekStart).reduce((a,l)=>a+parseFloat(l.hours||0),0);
+  document.getElementById('stat-hours').textContent = totalH.toFixed(1);
+  document.getElementById('stat-hours-week').textContent = 'this week: ' + weekH.toFixed(1) + 'h';
+  document.getElementById('card-hours').classList.toggle('filled', totalH > 0);
+
+  document.getElementById('stat-mocks').textContent = state.mocks.length;
+  if (state.mocks.length) {
+    const scores = state.mocks.map(m=>parseFloat(m.score));
+    document.getElementById('stat-avg-score').textContent = 'avg: ' + (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1);
+    document.getElementById('stat-best').textContent = Math.max(...scores);
+    document.getElementById('card-mocks').classList.add('filled');
+    document.getElementById('card-best').classList.add('filled');
+  } else {
+    document.getElementById('stat-avg-score').textContent = 'avg: —';
+    document.getElementById('stat-best').textContent = '—';
+  }
+
+  // Streaks
+  const studiedDates = [...new Set(state.studyLog.map(l=>l.date))].sort();
+  const today = new Date().toISOString().split('T')[0];
+  let cur = 0, longest = 0, tmp = 0, prev = null;
+  studiedDates.forEach(d => {
+    if (prev) {
+      const diff = (new Date(d) - new Date(prev)) / 86400000;
+      if (diff === 1) tmp++; else tmp = 1;
+    } else tmp = 1;
+    if (tmp > longest) longest = tmp;
+    prev = d;
+  });
+  // current streak
+  let curDate = new Date(today); cur = 0;
+  while (true) {
+    const ds = curDate.toISOString().split('T')[0];
+    if (studiedDates.includes(ds)) { cur++; curDate.setDate(curDate.getDate()-1); }
+    else break;
+  }
+  document.getElementById('streak-current').textContent = cur + ' day' + (cur!==1?'s':'');
+  document.getElementById('streak-longest').textContent = longest + ' day' + (longest!==1?'s':'');
+  document.getElementById('streak-total').textContent = studiedDates.length + ' day' + (studiedDates.length!==1?'s':'');
+}
+
+// HEATMAP
+function renderHeatmap() {
+  const grid = document.getElementById('heatmapGrid');
+  grid.innerHTML = '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const logMap = {};
+  state.studyLog.forEach(l => { logMap[l.date] = (logMap[l.date]||0) + parseFloat(l.hours||0); });
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate()-i);
+    const key = d.toISOString().split('T')[0];
+    const h = logMap[key] || 0;
+    const level = h === 0 ? 0 : h < 1 ? 1 : h < 2 ? 2 : h < 4 ? 3 : 4;
+    const cell = document.createElement('div');
+    cell.className = 'heatmap-cell';
+    if (level > 0) cell.setAttribute('data-level', level);
+    cell.title = key + ': ' + h.toFixed(1) + 'h';
+    grid.appendChild(cell);
+  }
+  // apply legend colors
+  document.querySelectorAll('.heatmap-legend [data-level]').forEach(el => {
+    const l = el.getAttribute('data-level');
+    if (l==='1') el.style.background='rgba(232,197,71,0.25)';
+    if (l==='2') el.style.background='rgba(232,197,71,0.5)';
+    if (l==='3') el.style.background='rgba(232,197,71,0.75)';
+    if (l==='4') el.style.background='var(--accent)';
+  });
+}
+
+// STUDY LOG
+function logStudy() {
+  const date = document.getElementById('logDate').value;
+  const section = document.getElementById('logSection').value;
+  const hours = parseFloat(document.getElementById('logHours').value);
+  const notes = document.getElementById('logNotes').value.trim();
+  if (!date || !hours || isNaN(hours)) { alert('Date and hours are required.'); return; }
+  state.studyLog.unshift({ id:'l'+Date.now(), date, section, hours, notes });
+  document.getElementById('logHours').value = '';
+  document.getElementById('logNotes').value = '';
+  save(); render();
+}
+
+function renderStudyLog() {
+  const tbody = document.getElementById('studyLogBody');
+  tbody.innerHTML = '';
+  if (!state.studyLog.length) { tbody.innerHTML='<tr><td colspan="5" class="empty-state">No study sessions logged yet.</td></tr>'; return; }
+  state.studyLog.slice(0,50).forEach(l => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${l.date||'—'}</td><td><span class="tag-pill">${l.section||'—'}</span></td><td>${parseFloat(l.hours).toFixed(1)}h</td><td style="color:var(--muted);font-size:11px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${l.notes||'—'}</td><td><button class="del-row" onclick="deleteStudyLog('${l.id}')">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function deleteStudyLog(id) { state.studyLog=state.studyLog.filter(l=>l.id!==id); save(); render(); }
+
+// SECTIONS
+function renderSections() {
+  const grid = document.getElementById('sectionsGrid');
+  grid.innerHTML = '';
+  state.sections.forEach((sec, si) => {
+    const done = sec.topics.filter(t=>t.done).length;
+    const total = sec.topics.length;
+    const pct = total ? Math.round(done/total*100) : 0;
+    const card = document.createElement('div');
+    card.className = 'section-card';
+    card.style.animationDelay = (si*0.06)+'s';
+    card.innerHTML = `
+      <div class="section-top">
+        <div class="section-name">${sec.name}</div>
+        <button class="delete-btn" onclick="deleteSection('${sec.id}')">✕</button>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="section-meta"><span>${done} / ${total} topics</span><span class="section-percent">${pct}%</span></div>
+      <div class="topics-list" id="tlist-${sec.id}"></div>
+      <div class="add-topic-row">
+        <input type="text" placeholder="Add topic..." id="tinput-${sec.id}" onkeydown="if(event.key==='Enter') addTopic('${sec.id}')">
+        <button class="add-topic-btn" onclick="addTopic('${sec.id}')">+</button>
+      </div>`;
+    grid.appendChild(card);
+    const tlist = document.getElementById('tlist-'+sec.id);
+    sec.topics.forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'topic-item';
+      row.innerHTML = `
+        <input type="checkbox" ${t.done?'checked':''} onchange="toggleTopic('${sec.id}','${t.id}',this.checked)">
+        <span class="topic-label${t.done?' done':''}">${t.name}</span>
+        <button class="topic-note-btn${t.note?' has-note':''}" onclick="openNote('${sec.id}','${t.id}')" title="${t.note?'Edit note':'Add note'}">📝</button>
+        <button class="remove-topic" onclick="removeTopic('${sec.id}','${t.id}')">✕</button>`;
+      tlist.appendChild(row);
+    });
+  });
+}
+
+function toggleTopic(sid,tid,val) { state.sections.find(s=>s.id===sid).topics.find(t=>t.id===tid).done=val; save(); render(); }
+function addTopic(sid) { const inp=document.getElementById('tinput-'+sid); const name=inp.value.trim(); if(!name) return; state.sections.find(s=>s.id===sid).topics.push({id:'t'+Date.now(),name,done:false,note:''}); inp.value=''; save(); render(); }
+function removeTopic(sid,tid) { state.sections.find(s=>s.id===sid).topics=state.sections.find(s=>s.id===sid).topics.filter(t=>t.id!==tid); save(); render(); }
+function deleteSection(sid) { if(!confirm('Delete this section?')) return; state.sections=state.sections.filter(s=>s.id!==sid); save(); render(); }
+
+// NOTES
+function openNote(sid, tid) {
+  noteTarget = {sid, tid};
+  const t = state.sections.find(s=>s.id===sid).topics.find(t=>t.id===tid);
+  document.getElementById('noteModalTitle').textContent = '📝 ' + t.name;
+  document.getElementById('noteInput').value = t.note || '';
+  openModal('note');
+}
+function saveNote() {
+  if (!noteTarget) return;
+  const t = state.sections.find(s=>s.id===noteTarget.sid).topics.find(t=>t.id===noteTarget.tid);
+  t.note = document.getElementById('noteInput').value.trim();
+  noteTarget = null; save(); render(); closeModal('note');
+}
+
+// MOCKS
+function logMock() {
+  const name = document.getElementById('mockName').value.trim();
+  const score = document.getElementById('mockScore').value;
+  if (!name || !score) { alert('Test name and score are required.'); return; }
+  state.mocks.push({ id:'m'+Date.now(), date:document.getElementById('mockDate').value, name, score:parseFloat(score), percentile:document.getElementById('mockPercentile').value });
+  document.getElementById('mockName').value=''; document.getElementById('mockScore').value=''; document.getElementById('mockPercentile').value='';
+  save(); render();
+}
+function deleteMock(id) { state.mocks=state.mocks.filter(m=>m.id!==id); save(); render(); }
+function renderMocks() {
+  const tbody = document.getElementById('mockBody');
+  tbody.innerHTML = '';
+  if (!state.mocks.length) { tbody.innerHTML='<tr><td colspan="5" class="empty-state">No mock tests logged yet.</td></tr>'; return; }
+  [...state.mocks].reverse().forEach(m => {
+    const sc = parseFloat(m.score);
+    const cls = sc>=75?'high':sc>=50?'mid':'low';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${m.date||'—'}</td><td>${m.name}</td><td><span class="score-pill ${cls}">${m.score}/100</span></td><td>${m.percentile?m.percentile+'%ile':'—'}</td><td><button class="del-row" onclick="deleteMock('${m.id}')">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// CHARTS
+const CHART_DEFAULTS = {
+  responsive:true, maintainAspectRatio:true,
+  plugins:{ legend:{ labels:{ color:'#6b6b7a', font:{ family:'DM Mono', size:11 } } } },
+  scales:{
+    x:{ ticks:{ color:'#6b6b7a', font:{family:'DM Mono',size:10} }, grid:{ color:'rgba(255,255,255,0.04)' } },
+    y:{ ticks:{ color:'#6b6b7a', font:{family:'DM Mono',size:10} }, grid:{ color:'rgba(255,255,255,0.04)' } }
+  }
+};
+
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function renderCharts() {
+  // Mock score trend
+  destroyChart('mockTrend');
+  const mocks = [...state.mocks].sort((a,b)=>a.date>b.date?1:-1);
+  if (mocks.length >= 2) {
+    charts['mockTrend'] = new Chart(document.getElementById('chartMockTrend'), {
+      type:'line',
+      data:{
+        labels: mocks.map(m=>m.name),
+        datasets:[{
+          label:'Score', data:mocks.map(m=>m.score),
+          borderColor:'#e8c547', backgroundColor:'rgba(232,197,71,0.08)',
+          pointBackgroundColor:'#e8c547', tension:0.4, fill:true
+        }]
+      },
+      options:{ ...CHART_DEFAULTS }
+    });
+  } else {
+    const c = document.getElementById('chartMockTrend');
+    const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
+    ctx.fillStyle='#6b6b7a'; ctx.font='12px DM Mono'; ctx.textAlign='center';
+    ctx.fillText('Log at least 2 mock tests to see trend', c.width/2, 80);
+  }
+
+  // Section progress (doughnut)
+  destroyChart('sectionProgress');
+  const secData = state.sections.map(s=>s.topics.length?Math.round(s.topics.filter(t=>t.done).length/s.topics.length*100):0);
+  charts['sectionProgress'] = new Chart(document.getElementById('chartSectionProgress'), {
+    type:'doughnut',
+    data:{
+      labels:state.sections.map(s=>s.name.length>20?s.name.substring(0,20)+'…':s.name),
+      datasets:[{ data:secData, backgroundColor:['#e8c547','#ff6b4a','#5ec4ff'], borderColor:'#141418', borderWidth:3 }]
+    },
+    options:{ ...CHART_DEFAULTS, cutout:'65%', plugins:{ legend:{ position:'bottom', labels:{ color:'#6b6b7a', font:{family:'DM Mono',size:10}, padding:16 } } } }
+  });
+
+  // Hours by section (bar)
+  destroyChart('hoursBySection');
+  const sectionKeys = ['QA','DILR','VARC','General'];
+  const sectionNames = ['Quant','DILR','Verbal','General'];
+  const hoursBySec = sectionKeys.map(k=>state.studyLog.filter(l=>l.section===k).reduce((a,l)=>a+parseFloat(l.hours||0),0));
+  charts['hoursBySection'] = new Chart(document.getElementById('chartHoursBySection'), {
+    type:'bar',
+    data:{
+      labels:sectionNames,
+      datasets:[{ label:'Hours', data:hoursBySec, backgroundColor:['rgba(232,197,71,0.7)','rgba(255,107,74,0.7)','rgba(94,196,255,0.7)','rgba(74,222,128,0.7)'], borderRadius:6 }]
+    },
+    options:{ ...CHART_DEFAULTS, plugins:{ legend:{ display:false } } }
+  });
+
+  // Daily hours - last 30 days
+  destroyChart('dailyHours');
+  const days30 = [];
+  const today = new Date();
+  for (let i=29;i>=0;i--) { const d=new Date(today); d.setDate(d.getDate()-i); days30.push(d.toISOString().split('T')[0]); }
+  const dailyH = days30.map(d=>state.studyLog.filter(l=>l.date===d).reduce((a,l)=>a+parseFloat(l.hours||0),0));
+  charts['dailyHours'] = new Chart(document.getElementById('chartDailyHours'), {
+    type:'bar',
+    data:{
+      labels:days30.map(d=>d.substring(5)),
+      datasets:[{ label:'Hours', data:dailyH, backgroundColor:'rgba(232,197,71,0.6)', borderRadius:4 }]
+    },
+    options:{ ...CHART_DEFAULTS, plugins:{ legend:{ display:false } } }
+  });
+}
+
+// MODALS
+function openModal(id) { document.getElementById('modal-'+id).classList.add('open'); setTimeout(()=>{ const inp=document.querySelector('#modal-'+id+' input, #modal-'+id+' textarea'); if(inp) inp.focus(); },50); }
+function closeModal(id) { document.getElementById('modal-'+id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el=>{
+  el.addEventListener('click', e=>{ if(e.target===el){ const id=el.id.replace('modal-',''); closeModal(id); } });
+});
+document.getElementById('sectionInput').addEventListener('keydown', e=>{ if(e.key==='Enter') addSection(); });
+function addSection() { const name=document.getElementById('sectionInput').value.trim(); if(!name) return; state.sections.push({id:'s'+Date.now(),name,topics:[]}); document.getElementById('sectionInput').value=''; save(); render(); closeModal('section'); }
+
+render();
+</script>
+</body>
+</html>
